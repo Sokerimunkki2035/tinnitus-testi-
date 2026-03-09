@@ -2,82 +2,159 @@
 <html lang="fi">
 <head>
     <meta charset="UTF-8">
-    <title>Tinnitus & Hyperakusia -seuranta</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tinnitus-seuranta & Generaattori</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; line-height: 1.6; background: #f9f9f9; }
-        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .entry { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.9em; }
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; line-height: 1.6; background: #f0f2f5; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
         label { display: block; margin-top: 15px; font-weight: bold; }
-        input, select, textarea { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        .slider-label { display: flex; justify-content: space-between; font-size: 0.8em; color: #666; }
-        button { background: #28a745; color: white; border: none; padding: 12px 20px; margin-top: 20px; cursor: pointer; border-radius: 4px; width: 100%; font-size: 1em; }
-        button:hover { background: #218838; }
-        h2 { color: #333; }
+        input[type="range"], input[type="text"], textarea { width: 100%; margin-top: 5px; }
+        .controls { display: flex; align-items: center; gap: 10px; }
+        .btn { background: #28a745; color: white; border: none; padding: 12px; margin-top: 20px; cursor: pointer; border-radius: 6px; width: 100%; font-size: 1.1em; }
+        .btn-audio { background: #007bff; margin-top: 10px; }
+        .btn-stop { background: #dc3545; }
+        .slider-val { font-weight: normal; color: #666; float: right; }
+        .history-item { background: #fff; padding: 10px; border-radius: 8px; margin-top: 10px; border-left: 5px solid #28a745; }
     </style>
 </head>
 <body>
+
+    <div class="card">
+        <h2>Äänigeneraattori (Vertailu)</h2>
+        <p style="font-size: 0.8em; color: #666;">Käytä tätä löytääksesi tinnituksesi tason ennen tallennusta.</p>
+        
+        <label>Vihellyksen taajuus: <span id="hzVal" class="slider-val">4000</span> Hz</label>
+        <input type="range" id="freq" min="1000" max="12000" step="10" value="4000">
+
+        <label>Sihinän määrä (Kohina): <span id="noiseVal" class="slider-val">0</span>%</label>
+        <input type="range" id="noiseLevel" min="0" max="100" value="0">
+
+        <label>Äänenvoimakkuus: <span id="volDisp" class="slider-val">20</span>%</label>
+        <input type="range" id="audioVol" min="0" max="100" value="20">
+
+        <button id="playBtn" class="btn btn-audio">Toista vertailuääni</button>
+        <button id="stopBtn" class="btn btn-audio btn-stop" style="display:none;">Pysäytä</button>
+    </div>
+
     <div class="card">
         <h2>Päivittäinen rekisteröinti</h2>
-        
-        <label>Päivämäärä:</label>
-        <input type="datetime-local" id="date">
-
         <label>Tinnituksen voimakkuus (1-10):</label>
-        <input type="range" id="volume" min="1" max="10" value="5">
-        <div class="slider-label"><span>Hiljainen</span><span>Erittäin kova</span></div>
-
+        <input type="range" id="volScore" min="1" max="10" value="5">
+        
         <label>Yliääniherkkyys (1-10):</label>
-        <input type="range" id="sensitivity" min="1" max="10" value="1">
-        <div class="slider-label"><span>Normaali</span><span>Kivulias</span></div>
+        <input type="range" id="sensScore" min="1" max="10" value="1">
 
-        <label>Äänimaailma (esim. vihellys, sihinä):</label>
-        <input type="text" id="soundType" placeholder="Mitä ääniä kuuluu?">
+        <label>Äänimaailma (esim. Vihellys 4000Hz):</label>
+        <input type="text" id="soundDesc" placeholder="Kirjoita tähän havaintosi...">
 
-        <label>Ohimon tunne & muistiinpanot:</label>
-        <textarea id="templeNote" rows="2" placeholder="Tuntuuko ohimolla painetta tai kireyttä? Mitkä äänet häiritsivät?"></textarea>
+        <label>Ohimo & Muistiinpanot:</label>
+        <textarea id="notes" rows="2" placeholder="Tuntuuko ohimolla painetta?"></textarea>
 
-        <button onclick="saveEntry()">Tallenna päivän tiedot</button>
+        <button onclick="saveEntry()" class="btn">Tallenna päivän tiedot</button>
     </div>
 
     <h3>Historia</h3>
     <div id="history"></div>
 
     <script>
-        // Asetetaan oletusajaksi nykyhetki
-        document.getElementById('date').value = new Date().toISOString().slice(0, 16);
+        let audioCtx, oscillator, noiseNode, gainNode;
+
+        const playBtn = document.getElementById('playBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            gainNode = audioCtx.createGain();
+            gainNode.connect(audioCtx.destination);
+        }
+
+        playBtn.onclick = () => {
+            if (!audioCtx) initAudio();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            // Pysäytetään vanhat jos päällä
+            stopAudio();
+
+            // 1. Vihellys (Oscillator)
+            oscillator = audioCtx.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = document.getElementById('freq').value;
+            
+            // 2. Sihinä (White Noise)
+            const bufferSize = 2 * audioCtx.sampleRate;
+            const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = noiseBuffer;
+            noiseNode.loop = true;
+
+            const noiseGain = audioCtx.createGain();
+            const oscGain = audioCtx.createGain();
+
+            const noiseVal = document.getElementById('noiseLevel').value / 100;
+            noiseGain.gain.value = noiseVal;
+            oscGain.gain.value = 1 - (noiseVal * 0.5); // Tasapainotetaan
+
+            oscillator.connect(oscGain).connect(gainNode);
+            noiseNode.connect(noiseGain).connect(gainNode);
+
+            gainNode.gain.value = document.getElementById('audioVol').value / 100;
+
+            oscillator.start();
+            noiseNode.start();
+
+            playBtn.style.display = 'none';
+            stopBtn.style.display = 'block';
+        };
+
+        function stopAudio() {
+            if (oscillator) oscillator.stop();
+            if (noiseNode) noiseNode.stop();
+            playBtn.style.display = 'block';
+            stopBtn.style.display = 'none';
+        }
+
+        stopBtn.onclick = stopAudio;
+
+        // Päivitä lukemat lennosta
+        document.getElementById('freq').oninput = function() { 
+            document.getElementById('hzVal').innerText = this.value;
+            if (oscillator) oscillator.frequency.value = this.value;
+        };
+        document.getElementById('audioVol').oninput = function() {
+            document.getElementById('volDisp').innerText = this.value;
+            if (gainNode) gainNode.gain.value = this.value / 100;
+        };
+        document.getElementById('noiseLevel').oninput = function() {
+            document.getElementById('noiseVal').innerText = this.value;
+        };
 
         function saveEntry() {
             const entry = {
-                date: document.getElementById('date').value,
-                vol: document.getElementById('volume').value,
-                sens: document.getElementById('sensitivity').value,
-                sound: document.getElementById('soundType').value,
-                note: document.getElementById('templeNote').value
+                date: new Date().toLocaleString('fi-FI'),
+                vol: document.getElementById('volScore').value,
+                sens: document.getElementById('sensScore').value,
+                sound: document.getElementById('soundDesc').value || `Vihellys ${document.getElementById('freq').value}Hz`,
+                note: document.getElementById('notes').value
             };
-            
-            let history = JSON.parse(localStorage.getItem('tinnitusLogV2') || "[]");
-            history.unshift(entry);
-            localStorage.setItem('tinnitusLogV2', JSON.stringify(history));
-            displayHistory();
-            
-            // Tyhjennetään tekstikentät tallennuksen jälkeen
-            document.getElementById('soundType').value = "";
-            document.getElementById('templeNote').value = "";
+            let logs = JSON.parse(localStorage.getItem('tinnitus_logs') || "[]");
+            logs.unshift(entry);
+            localStorage.setItem('tinnitus_logs', JSON.stringify(logs));
+            renderHistory();
         }
 
-        function displayHistory() {
-            const history = JSON.parse(localStorage.getItem('tinnitusLogV2') || "[]");
-            const container = document.getElementById('history');
-            container.innerHTML = history.map(e => `
-                <div class="entry">
-                    <strong>${new Date(e.date).toLocaleString('fi-FI')}</strong><br>
-                    Ääni: ${e.vol}/10 | Herkkyys: ${e.sens}/10<br>
-                    <em>${e.sound}</em><br>
-                    <small>${e.note}</small>
+        function renderHistory() {
+            const logs = JSON.parse(localStorage.getItem('tinnitus_logs') || "[]");
+            document.getElementById('history').innerHTML = logs.map(l => `
+                <div class="history-item">
+                    <strong>${l.date}</strong><br>
+                    Voima: ${l.vol} | Herkkyys: ${l.sens}<br>
+                    <em>${l.sound}</em><p>${l.note}</p>
                 </div>
             `).join('');
         }
-        displayHistory();
+        renderHistory();
     </script>
 </body>
-</html>
+</html> 
