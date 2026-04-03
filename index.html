@@ -3,64 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tinnitus-seuranta Pro</title>
+    <title>Tinnitus-seuranta Pro (Split Control)</title>
     <style>
         body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; line-height: 1.6; background: #f0f2f5; }
         .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
         label { display: block; margin-top: 15px; font-weight: bold; }
-        .val-display { float: right; font-family: monospace; font-size: 1.3em; color: #d63384; font-weight: bold; }
-        input[type="range"] { width: 100%; height: 30px; cursor: pointer; margin-top: 10px; }
+        .val-display { float: right; font-family: monospace; font-size: 1.2em; color: #d63384; font-weight: bold; }
+        .control-row { display: flex; align-items: center; justify-content: space-between; background: #f8f9fa; padding: 10px; border-radius: 8px; margin-top: 5px; border: 1px solid #dee2e6; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider-round { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+        .slider-round:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider-round { background-color: #007bff; }
+        input:checked + .slider-round:before { transform: translateX(26px); }
         .btn { background: #28a745; color: white; border: none; padding: 12px; margin-top: 10px; cursor: pointer; border-radius: 6px; width: 100%; font-size: 1.1em; }
-        .btn-audio { background: #007bff; }
         .btn-stop { background: #dc3545; }
-        .info-text { font-size: 0.85em; color: #666; margin-top: 5px; background: #fff3cd; padding: 10px; border-radius: 6px; }
-        .history-item { background: #fff; padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 5px solid #28a745; }
+        textarea { width: 100%; border-radius: 6px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>Äänen voimakkuus & Peittotesti</h2>
-        <div class="info-text">
-            <strong>OHJE:</strong> Pidä puhelimen oma volyymi siinä asennossa, missä se sinulla yleensä on. Käytä alla olevaa säädintä testin tekemiseen.
+        <h2>Äänien hienosäätö</h2>
+        
+        <label>1. Vihellys (Siniääni)</label>
+        <div class="control-row">
+            <span>Päällä / Pois</span>
+            <label class="switch">
+                <input type="checkbox" id="oscEnabled" checked>
+                <span class="slider-round"></span>
+            </label>
         </div>
+        <label>Taajuus: <span id="hzVal" class="val-display">9680</span> Hz</label>
+        <input type="range" id="freq" min="1000" max="15000" step="10" value="9680">
 
-        <label>Testiäänen taso (0-100): <span id="volVal" class="val-display">50</span></label>
-        <input type="range" id="audioVol" min="0" max="100" value="50">
-
-        <label>Taajuus (Hz): <span id="hzVal" class="val-display">8000</span></label>
-        <input type="range" id="freq" min="1000" max="15000" step="10" value="8000">
-
-        <label>Sihinän määrä (%): <span id="noiseVal" class="val-display">0</span></label>
+        <label>2. Suhina (Valkoinen kohina)</label>
+        <div class="control-row">
+            <span>Päällä / Pois</span>
+            <label class="switch">
+                <input type="checkbox" id="noiseEnabled" checked>
+                <span class="slider-round"></span>
+            </label>
+        </div>
+        <label>Suhinan voimakkuus: <span id="noiseVal" class="val-display">0</span>%</label>
         <input type="range" id="noiseLevel" min="0" max="100" value="0">
 
-        <button id="playBtn" class="btn btn-audio">Toista testiääni</button>
-        <button id="stopBtn" class="btn btn-audio btn-stop" style="display:none;">Pysäytä testiääni</button>
+        <hr style="margin: 20px 0; border: 0; border-top: 1px solid #eee;">
+        
+        <label>Yleinen voimakkuus: <span id="volVal" class="val-display">50</span></label>
+        <input type="range" id="audioVol" min="0" max="100" value="50">
+
+        <button id="playBtn" class="btn" style="background:#007bff;">Käynnistä testi</button>
+        <button id="stopBtn" class="btn btn-stop" style="display:none;">Pysäytä kaikki</button>
     </div>
 
     <div class="card">
         <h2>Päivän havainnot</h2>
-        <label>Tinnituksen voimakkuus (1-10):</label>
-        <input type="range" id="volScore" min="1" max="10" value="5">
+        <label>Peittopiste (Luku):</label>
+        <input type="text" id="maskingPoint" placeholder="Esim. Vihellys peittyi tasolla 86">
+        
+        <label>Muistiinpanot:</label>
+        <textarea id="notes" rows="4" placeholder="Kirjaa tähän esim. sormen asento tai jos jompikumpi ääni puuttui..."></textarea>
 
-        <label>Peittopiste (Luku ylhäältä):</label>
-        <input type="text" id="maskingPoint" placeholder="Millä numerolla ääni hävisi?">
-
-        <label>Muistiinpanot (esim. ohimon tunne):</label>
-        <textarea id="notes" rows="3" style="width:100%; border-radius:6px; border:1px solid #ccc;"></textarea>
-
-        <button onclick="saveEntry()" class="btn">Tallenna historiatietoihin</button>
+        <button onclick="saveEntry()" class="btn">Tallenna havainto</button>
     </div>
 
-    <h3>Historia</h3>
     <div id="history"></div>
 
     <script>
-        let audioCtx, oscillator, noiseNode, gainNode;
+        let audioCtx, oscillator, noiseNode, gainNode, oscGain, noiseGain;
 
         function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             gainNode = audioCtx.createGain();
+            oscGain = audioCtx.createGain();
+            noiseGain = audioCtx.createGain();
+            
+            oscGain.connect(gainNode);
+            noiseGain.connect(gainNode);
             gainNode.connect(audioCtx.destination);
         }
 
@@ -72,10 +92,13 @@
             if (audioCtx.state === 'suspended') audioCtx.resume();
             stopAudio();
 
+            // Siniääni (Vihellys)
             oscillator = audioCtx.createOscillator();
             oscillator.type = 'sine';
             oscillator.frequency.value = document.getElementById('freq').value;
+            oscillator.connect(oscGain);
             
+            // Kohina (Suhina)
             const bufferSize = 2 * audioCtx.sampleRate;
             const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const output = noiseBuffer.getChannelData(0);
@@ -83,24 +106,22 @@
             noiseNode = audioCtx.createBufferSource();
             noiseNode.buffer = noiseBuffer;
             noiseNode.loop = true;
+            noiseNode.connect(noiseGain);
 
-            const noiseGain = audioCtx.createGain();
-            const oscGain = audioCtx.createGain();
-            const nVal = document.getElementById('noiseLevel').value / 100;
-            
-            noiseGain.gain.value = nVal;
-            oscGain.gain.value = 1 - (nVal * 0.5);
-
-            oscillator.connect(oscGain).connect(gainNode);
-            noiseNode.connect(noiseGain).connect(gainNode);
-            
-            gainNode.gain.value = document.getElementById('audioVol').value / 100;
-
+            updateStates();
             oscillator.start();
             noiseNode.start();
+            
             playBtn.style.display = 'none';
             stopBtn.style.display = 'block';
         };
+
+        function updateStates() {
+            if (!gainNode) return;
+            gainNode.gain.value = document.getElementById('audioVol').value / 100;
+            oscGain.gain.value = document.getElementById('oscEnabled').checked ? 1.0 : 0;
+            noiseGain.gain.value = document.getElementById('noiseEnabled').checked ? (document.getElementById('noiseLevel').value / 100) : 0;
+        }
 
         function stopAudio() {
             if (oscillator) { try { oscillator.stop(); } catch(e){} }
@@ -110,43 +131,34 @@
         }
 
         stopBtn.onclick = stopAudio;
-
-        // Päivitä luvut näytölle
-        document.getElementById('audioVol').oninput = function() {
-            document.getElementById('volVal').innerText = this.value;
-            if (gainNode) gainNode.gain.value = this.value / 100;
-        };
-        document.getElementById('freq').oninput = function() {
-            document.getElementById('hzVal').innerText = this.value;
-            if (oscillator) oscillator.frequency.value = this.value;
-        };
-        document.getElementById('noiseLevel').oninput = function() {
-            document.getElementById('noiseVal').innerText = this.value;
-        };
+        document.getElementById('oscEnabled').onchange = updateStates;
+        document.getElementById('noiseEnabled').onchange = updateStates;
+        document.getElementById('audioVol').oninput = function() { document.getElementById('volVal').innerText = this.value; updateStates(); };
+        document.getElementById('freq').oninput = function() { document.getElementById('hzVal').innerText = this.value; if(oscillator) oscillator.frequency.value = this.value; };
+        document.getElementById('noiseLevel').oninput = function() { document.getElementById('noiseVal').innerText = this.value; updateStates(); };
 
         function saveEntry() {
             const entry = {
                 date: new Date().toLocaleString('fi-FI'),
-                vol: document.getElementById('volScore').value,
                 mask: document.getElementById('maskingPoint').value,
                 hz: document.getElementById('freq').value,
                 note: document.getElementById('notes').value
             };
-            let logs = JSON.parse(localStorage.getItem('tinnitus_v6') || "[]");
+            let logs = JSON.parse(localStorage.getItem('tinnitus_v7') || "[]");
             logs.unshift(entry);
-            localStorage.setItem('tinnitus_v6', JSON.stringify(logs));
+            localStorage.setItem('tinnitus_v7', JSON.stringify(logs));
             renderHistory();
             document.getElementById('notes').value = "";
             stopAudio();
         }
 
         function renderHistory() {
-            const logs = JSON.parse(localStorage.getItem('tinnitus_v6') || "[]");
+            const logs = JSON.parse(localStorage.getItem('tinnitus_v7') || "[]");
             document.getElementById('history').innerHTML = logs.map(l => `
-                <div class="history-item">
+                <div class="card" style="font-size:0.9em; border-left: 5px solid #007bff;">
                     <strong>${l.date}</strong><br>
-                    Taajuus: ${l.hz} Hz | Peittopiste: ${l.mask}<br>
-                    <em>${l.note}</em>
+                    Hz: ${l.hz} | Peitto: ${l.mask}<br>
+                    <p>${l.note}</p>
                 </div>
             `).join('');
         }
@@ -154,4 +166,3 @@
     </script>
 </body>
 </html>
- 
