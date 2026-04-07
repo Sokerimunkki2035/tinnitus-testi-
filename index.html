@@ -3,169 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuuloanalyysi v10: Sanatesti & Kirjoitus</title>
+    <title>Kuuloanalyysi v11: Prosentuaalinen Sanatesti</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; line-height: 1.6; background: #f0f4f8; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background: #f4f7f6; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
         .btn { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 1.1em; }
         .btn-test { background: #28a745; }
-        .btn-check { background: #6c757d; margin-top: 5px; }
-        .val-display { float: right; font-weight: bold; color: #d63384; }
-        select, input[type="range"], input[type="text"] { width: 100%; margin-top: 8px; margin-bottom: 15px; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        .history-item { font-size: 0.85em; background: #fff; border-left: 5px solid #007bff; padding: 10px; margin-top: 10px; border-radius: 4px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .audio-channel { display: flex; gap: 10px; margin-bottom: 15px; }
-        .channel-btn { flex: 1; padding: 10px; border: 1px solid #ccc; background: #eee; cursor: pointer; border-radius: 5px; text-align: center; }
-        .channel-btn.active { background: #007bff; color: white; border-color: #0056b3; }
-        #feedback { font-weight: bold; margin-top: 10px; text-align: center; }
+        .stats { display: flex; justify-content: space-around; background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; }
+        input[type="text"], select, input[type="range"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .history-item { font-size: 0.85em; padding: 10px; border-bottom: 1px solid #eee; }
+        .correct { color: green; } .wrong { color: red; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>1. Asetukset</h2>
-        <div class="audio-channel">
-            <div id="chan-both" class="channel-btn active" onclick="setChannel('both')">Molemmat</div>
-            <div id="chan-left" class="channel-btn" onclick="setChannel('left')">Vasen</div>
-            <div id="chan-right" class="channel-btn" onclick="setChannel('right')">Oikea</div>
+        <h2>Kuuloindeksi (Speech Score)</h2>
+        <div class="stats">
+            <div>Testit: <span id="statTotal">0</span></div>
+            <div>Oikein: <span id="statCorrect">0</span></div>
+            <div>Erotuskyky: <span id="statPercent">0</span>%</div>
         </div>
+        <button onclick="resetStats()" style="font-size:0.7em; background:none; border:none; color:gray; cursor:pointer;">Nollaa tilastot</button>
+    </div>
 
-        <label>Etäisyys (metriä):</label>
-        <select id="distanceSelect">
-            <option value="1">1 metri (Perus)</option>
-            <option value="2">2 metriä (+15% kohinaa)</option>
-            <option value="3">3 metriä (+30% kohinaa)</option>
-        </select>
-
-        <label>Huminan perustaso: <span id="noiseVal" class="val-display">20</span>%</label>
+    <div class="card">
+        <h3>Testiasetukset</h3>
+        <label>Korva: 
+            <select id="channel">
+                <option value="0">Molemmat</option>
+                <option value="-1">Vasen (Tinnitus-puoli)</option>
+                <option value="1">Oikea</option>
+            </select>
+        </label>
+        <label>Taustahumina: <span id="noiseVal">20</span>%</label>
         <input type="range" id="noiseLevel" min="0" max="100" value="20" oninput="document.getElementById('noiseVal').innerText=this.value">
     </div>
 
     <div class="card">
-        <h2>2. Sanatesti</h2>
-        <button onclick="startWordTest()" class="btn btn-test" id="playBtn">Kuuntele sana</button>
+        <h3>Sanojen erotustesti</h3>
+        <button id="playBtn" onclick="startTest()" class="btn btn-test">Kuuntele sana</button>
         
-        <div id="testArea" style="display:none; margin-top:20px;">
-            <label>Kirjoita kuulemasi sana:</label>
-            <input type="text" id="userInput" placeholder="Kirjoita tähän...">
-            <button onclick="checkWord()" class="btn btn-check">Tarkista ja tallenna</button>
-            <div id="feedback"></div>
+        <div id="inputArea" style="display:none; margin-top:15px;">
+            <input type="text" id="userInput" placeholder="Kirjoita mitä kuulit...">
+            <button onclick="checkAnswer()" class="btn">Tarkista</button>
         </div>
+        <div id="feedback" style="margin-top:10px; font-weight:bold;"></div>
     </div>
 
-    <div id="history"></div>
+    <h3>Viimeisimmät tulokset</h3>
+    <div id="log" class="card"></div>
 
     <script>
         let audioCtx, noiseNode, noiseGain, panner;
-        let currentChannel = 'both';
         let currentWord = "";
-        const sanat = ["appelsiini", "tietokone", "ravintola", "mansikka", "aurinko", "perhonen", "mustikka", "polkupyörä", "koululainen", "sairaala", "lentokone", "puhelinluettelo"];
+        const sanat = ["appelsiini", "tietokone", "ravintola", "mansikka", "aurinko", "perhonen", "mustikka", "polkupyörä", "koululainen", "sairaala", "lentokone", "puhelinvaihde", "valokuvaaja", "elokuvateatteri", "pääskynen"];
 
         function initAudio() {
             if (!audioCtx) {
-                audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 panner = audioCtx.createStereoPanner();
                 noiseGain = audioCtx.createGain();
-                noiseGain.connect(panner);
-                panner.connect(audioCtx.destination);
+                noiseGain.connect(panner).connect(audioCtx.destination);
             }
         }
 
-        function setChannel(ch) {
-            currentChannel = ch;
-            document.querySelectorAll('.channel-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('chan-' + ch).classList.add('active');
-            if (panner) {
-                if (ch === 'left') panner.pan.value = -1;
-                else if (ch === 'right') panner.pan.value = 1;
-                else panner.pan.value = 0;
-            }
-        }
-
-        function startWordTest() {
+        function startTest() {
             initAudio();
             if (audioCtx.state === 'suspended') audioCtx.resume();
             
-            document.getElementById('testArea').style.display = 'block';
-            document.getElementById('feedback').innerText = "Kuunnellaan...";
-            document.getElementById('userInput').value = "";
             document.getElementById('playBtn').disabled = true;
+            document.getElementById('inputArea').style.display = 'block';
+            document.getElementById('userInput').value = "";
+            document.getElementById('feedback').innerText = "Humina päällä...";
 
-            // Kohinan säätö
-            const baseNoise = parseInt(document.getElementById('noiseLevel').value);
-            const distanceExtra = (parseInt(document.getElementById('distanceSelect').value) - 1) * 15;
-            const finalNoise = Math.min((baseNoise + distanceExtra) / 100, 1.0);
-
+            // Kohina
+            stopNoise();
             const bufferSize = 2 * audioCtx.sampleRate;
             const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const output = noiseBuffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
-            
             noiseNode = audioCtx.createBufferSource();
             noiseNode.buffer = noiseBuffer;
             noiseNode.loop = true;
             noiseNode.connect(noiseGain);
-            noiseGain.gain.value = finalNoise;
-            setChannel(currentChannel);
+            noiseGain.gain.value = document.getElementById('noiseLevel').value / 100;
+            panner.pan.value = document.getElementById('channel').value;
             noiseNode.start();
 
+            // Puhe
             currentWord = sanat[Math.floor(Math.random() * sanat.length)];
             const msg = new SpeechSynthesisUtterance(currentWord);
             msg.lang = 'fi-FI';
             msg.rate = 0.7;
-            
-            msg.onend = () => {
-                document.getElementById('feedback').innerText = "Kirjoita sana nyt.";
-                // Kohina jää päälle, kunnes käyttäjä tarkistaa sanan
-            };
             window.speechSynthesis.speak(msg);
         }
 
-        function checkWord() {
+        function checkAnswer() {
             const userIn = document.getElementById('userInput').value.trim().toLowerCase();
             const isCorrect = (userIn === currentWord.toLowerCase());
-            
-            if (isCorrect) {
-                document.getElementById('feedback').innerHTML = "<span style='color:green;'>OIKEIN!</span>";
-            } else {
-                document.getElementById('feedback').innerHTML = "<span style='color:red;'>VÄÄRIN.</span> Oikea sana: " + currentWord;
-            }
-
-            saveLog(userIn, isCorrect);
             stopNoise();
+            
+            saveResult(currentWord, userIn, isCorrect);
+            
+            document.getElementById('feedback').innerHTML = isCorrect ? 
+                "<span class='correct'>OIKEIN</span>" : 
+                "<span class='wrong'>VÄÄRIN.</span> Oikea oli: " + currentWord;
+            
             document.getElementById('playBtn').disabled = false;
+            updateStats();
         }
 
-        function stopNoise() {
-            if (noiseNode) { try { noiseNode.stop(); } catch(e){} }
-        }
+        function stopNoise() { if (noiseNode) { try { noiseNode.stop(); } catch(e){} } }
 
-        function saveLog(userInput, correct) {
-            const entry = {
+        function saveResult(word, input, correct) {
+            let history = JSON.parse(localStorage.getItem('tinnitus_results') || "[]");
+            history.unshift({
                 date: new Date().toLocaleString('fi-FI'),
-                dist: document.getElementById('distanceSelect').value,
+                word: word,
+                input: input,
+                correct: correct,
                 noise: document.getElementById('noiseLevel').value,
-                chan: currentChannel,
-                word: currentWord,
-                input: userInput,
-                res: correct ? "Oikein" : "Väärin"
-            };
-            let logs = JSON.parse(localStorage.getItem('kuulotesti_v10') || "[]");
-            logs.unshift(entry);
-            localStorage.setItem('kuulotesti_v10', JSON.stringify(logs));
-            renderHistory();
+                side: document.getElementById('channel').value
+            });
+            localStorage.setItem('tinnitus_results', JSON.stringify(history.slice(0, 50)));
+            renderLog();
         }
 
-        function renderHistory() {
-            const logs = JSON.parse(localStorage.getItem('kuulotesti_v10') || "[]");
-            document.getElementById('history').innerHTML = logs.map(l => `
+        function updateStats() {
+            let history = JSON.parse(localStorage.getItem('tinnitus_results') || "[]");
+            let total = history.length;
+            let correct = history.filter(h => h.correct).length;
+            let percent = total > 0 ? Math.round((correct / total) * 100) : 0;
+            
+            document.getElementById('statTotal').innerText = total;
+            document.getElementById('statCorrect').innerText = correct;
+            document.getElementById('statPercent').innerText = percent;
+        }
+
+        function renderLog() {
+            let history = JSON.parse(localStorage.getItem('tinnitus_results') || "[]");
+            document.getElementById('log').innerHTML = history.map(h => `
                 <div class="history-item">
-                    <strong>${l.date}</strong> | ${l.res}<br>
-                    Korva: ${l.chan} | Etäisyys: ${l.dist}m | Kohina: ${l.noise}%<br>
-                    <em>Oikein: ${l.word} | Sinä: ${l.input}</em>
+                    ${h.date} | <strong>${h.correct ? '✓' : '✗'}</strong> | 
+                    Kohina: ${h.noise}% | ${h.word} vs "${h.input}"
                 </div>
             `).join('');
         }
-        renderHistory();
+
+        function resetStats() {
+            if(confirm("Haluatko nollata tilastot?")) {
+                localStorage.removeItem('tinnitus_results');
+                updateStats();
+                renderLog();
+            }
+        }
+
+        updateStats();
+        renderLog();
     </script>
 </body>
 </html>
+ 
