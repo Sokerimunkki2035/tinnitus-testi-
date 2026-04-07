@@ -3,64 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuuloanalyysi v13: Aito ympäristö</title>
+    <title>Avoin Kuuloanalyysi: Sanojen erotuskyky</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background: #f0f2f5; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .btn { background: #007bff; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; width: 100%; margin-top: 10px; font-size: 1.1em; }
+        body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 20px auto; padding: 20px; background: #f8f9fa; color: #333; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        .btn { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 1.1em; font-weight: bold; transition: 0.2s; }
+        .btn:hover { background: #0056b3; }
         .btn-test { background: #28a745; }
-        .stats { display: flex; justify-content: space-around; background: #e9ecef; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; }
-        select, input[type="range"], input[type="text"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        .history-item { font-size: 0.85em; border-bottom: 1px solid #eee; padding: 10px; }
+        .stats { display: flex; justify-content: space-around; background: #f1f3f5; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        select, input[type="range"], input[type="text"] { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ced4da; border-radius: 8px; box-sizing: border-box; font-size: 1em; }
+        .log-entry { font-size: 0.9em; border-bottom: 1px solid #eee; padding: 10px 0; display: flex; justify-content: space-between; }
+        .tag { font-size: 0.75em; background: #e9ecef; padding: 2px 8px; border-radius: 4px; color: #495057; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>Erotuskyky (Aito ympäristö)</h2>
+        <h1>Kuulotesti-avustaja</h1>
+        <p>Testaa puheen erotuskykyä erilaisissa taustahälyissä. Tämä testi on tarkoitettu lääkärinkäynnin tueksi.</p>
         <div class="stats">
             <div>Testit: <span id="statTotal">0</span></div>
-            <div>Score: <span id="statPercent">0</span>%</div>
+            <div>Onnistuminen: <span id="statPercent">0</span>%</div>
         </div>
     </div>
 
     <div class="card">
-        <h3>1. Äänimaailman valinta</h3>
-        <label>Taustahäly:</label>
+        <h3>1. Asetukset</h3>
+        <label>Ympäristö:</label>
         <select id="noiseType">
-            <option value="brown">Liikenteen jyrinä (Matala)</option>
-            <option value="pink">Vesisade (Pehmeä)</option>
-            <option value="white">Valkoinen kohina (Kliininen)</option>
+            <option value="brown">Matalataajuinen jyrinä (Liikenne)</option>
+            <option value="pink">Tasainen suhina (Vesisade)</option>
+            <option value="white">Valkoinen kohina (Laboratorio)</option>
         </select>
 
-        <label>Etäisyys: 
-            <select id="distance">
-                <option value="1m">1 metri</option>
-                <option value="3m">3 metriä</option>
-            </select>
-        </label>
+        <label>Etäisyys kaiuttimesta:</label>
+        <select id="distance">
+            <option value="1m">1 metri</option>
+            <option value="2m">2 metriä</option>
+            <option value="3m">3 metriä</option>
+            <option value="5m">5 metriä</option>
+        </select>
 
         <label>Hälyn voimakkuus: <span id="noiseVal">20</span>%</label>
         <input type="range" id="noiseLevel" min="0" max="100" value="20" oninput="document.getElementById('noiseVal').innerText=this.value">
     </div>
 
     <div class="card">
-        <h3>2. Sanojen tunnistus</h3>
-        <button id="playBtn" onclick="startTest()" class="btn btn-test">Kuuntele sana hälyssä</button>
+        <h3>2. Testi</h3>
+        <button id="playBtn" onclick="startTest()" class="btn btn-test">Pelaa sana</button>
         
-        <div id="inputArea" style="display:none; margin-top:15px;">
-            <input type="text" id="userInput" placeholder="Mitä kuulit?">
-            <button onclick="checkAnswer()" class="btn">Tarkista</button>
+        <div id="inputArea" style="display:none; margin-top:20px;">
+            <input type="text" id="userInput" placeholder="Kirjoita kuulemasi sana...">
+            <button onclick="checkAnswer()" class="btn">Tarkista ja tallenna</button>
         </div>
-        <div id="feedback" style="margin-top:10px; font-weight:bold; text-align:center;"></div>
+        <div id="feedback" style="margin-top:15px; font-weight:bold; text-align:center;"></div>
     </div>
 
-    <div id="log" class="card"></div>
+    <div class="card">
+        <h3>Historia (Tallennettu laitteellesi)</h3>
+        <div id="log"></div>
+        <button onclick="clearHistory()" style="margin-top:20px; background:none; border:none; color:#dc3545; cursor:pointer; font-size:0.8em;">Tyhjennä historia</button>
+    </div>
 
     <script>
         let audioCtx, noiseNode, noiseGain;
         let currentWord = "";
-        const sanat = ["appelsiini", "tietokone", "ravintola", "mansikka", "perhonen", "mustikka", "polkupyörä", "koululainen", "sairaala", "lentokone", "valokuvaaja"];
+        const sanat = ["appelsiini", "tietokone", "ravintola", "mansikka", "perhonen", "mustikka", "polkupyörä", "koululainen", "sairaala", "lentokone", "elokuvateatteri", "pääskynen", "aurinkolasit", "sateenvarjo"];
 
         function initAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -76,7 +84,8 @@
             document.getElementById('playBtn').disabled = true;
             document.getElementById('inputArea').style.display = 'block';
             document.getElementById('userInput').value = "";
-            
+            document.getElementById('feedback').innerText = "Kuuntele tarkasti...";
+
             stopNoise();
             const bufferSize = 2 * audioCtx.sampleRate;
             const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -87,12 +96,11 @@
 
             for (let i = 0; i < bufferSize; i++) {
                 let white = Math.random() * 2 - 1;
-                if (type === 'brown') { // Brown noise (liikenne)
+                if (type === 'brown') {
                     output[i] = (lastOut + (0.02 * white)) / 1.02;
                     lastOut = output[i];
-                    output[i] *= 3.5; 
-                } else if (type === 'pink') { // Pink noise (vesisade)
-                    // Yksinkertaistettu vesisade
+                    output[i] *= 3.5;
+                } else if (type === 'pink') {
                     output[i] = (white + lastOut) / 2.1;
                     lastOut = output[i];
                 } else {
@@ -118,8 +126,9 @@
             const userIn = document.getElementById('userInput').value.trim().toLowerCase();
             const isCorrect = (userIn === currentWord.toLowerCase());
             stopNoise();
+            
             saveResult(currentWord, userIn, isCorrect);
-            document.getElementById('feedback').innerHTML = isCorrect ? "<span style='color:green'>✓</span>" : "<span style='color:red'>✗ Oikea: " + currentWord + "</span>";
+            document.getElementById('feedback').innerHTML = isCorrect ? "<span style='color:green'>Oikein!</span>" : "<span style='color:red'>Väärin. Oikea sana: " + currentWord + "</span>";
             document.getElementById('playBtn').disabled = false;
             updateStats();
         }
@@ -127,33 +136,39 @@
         function stopNoise() { if (noiseNode) { try { noiseNode.stop(); } catch(e){} } }
 
         function saveResult(word, input, correct) {
-            let history = JSON.parse(localStorage.getItem('tinnitus_env_v13') || "[]");
+            let history = JSON.parse(localStorage.getItem('kuulotesti_v14') || "[]");
             history.unshift({
                 date: new Date().toLocaleString('fi-FI'),
                 word: word, input: input, correct: correct,
                 noise: document.getElementById('noiseLevel').value,
-                type: document.getElementById('noiseType').value
+                type: document.getElementById('noiseType').value,
+                dist: document.getElementById('distance').value
             });
-            localStorage.setItem('tinnitus_env_v13', JSON.stringify(history.slice(0, 50)));
+            localStorage.setItem('kuulotesti_v14', JSON.stringify(history.slice(0, 50)));
             renderLog();
         }
 
         function updateStats() {
-            let history = JSON.parse(localStorage.getItem('tinnitus_env_v13') || "[]");
+            let history = JSON.parse(localStorage.getItem('kuulotesti_v14') || "[]");
             let correct = history.filter(h => h.correct).length;
             document.getElementById('statTotal').innerText = history.length;
             document.getElementById('statPercent').innerText = history.length > 0 ? Math.round((correct / history.length) * 100) : 0;
         }
 
         function renderLog() {
-            let history = JSON.parse(localStorage.getItem('tinnitus_env_v13') || "[]");
+            let history = JSON.parse(localStorage.getItem('kuulotesti_v14') || "[]");
             document.getElementById('log').innerHTML = history.map(h => `
-                <div class="history-item">
-                    ${h.date} | <strong>${h.correct?'✓':'✗'}</strong> | ${h.type} ${h.noise}% | ${h.word}
+                <div class="log-entry">
+                    <span>${h.correct ? '✅' : '❌'} <strong>${h.word}</strong></span>
+                    <span><span class="tag">${h.dist}</span> <span class="tag">${h.type} ${h.noise}%</span></span>
                 </div>
             `).join('');
         }
+
+        function clearHistory() { if(confirm("Tyhjennetäänkö kaikki tulokset?")) { localStorage.removeItem('kuulotesti_v14'); updateStats(); renderLog(); } }
+
         updateStats(); renderLog();
     </script>
 </body>
 </html>
+ 
